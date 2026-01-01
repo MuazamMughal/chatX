@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Models\App;
 use App\Models\User;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Auth\Events\Registered;
@@ -29,6 +30,9 @@ class AuthController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'app_name' => ['required', 'string', 'max:255'],
+            'app_description' => ['nullable', 'string', 'max:1000'],
+            'app_domain' => ['nullable', 'string', 'max:255'],
         ]);
 
         $user = User::create([
@@ -37,13 +41,25 @@ class AuthController extends Controller
             'password' => Hash::make($request->string('password')),
         ]);
 
-        event(new Registered($user));
+        // event(new Registered($user)); // Temporarily disabled to avoid email issues
+
+        // Create app for the user
+        $app = App::create([
+            'name' => $request->app_name,
+            'slug' => Str::slug($request->app_name) . '-' . Str::random(6),
+            'description' => $request->app_description,
+            'domain' => $request->app_domain,
+            'settings' => null,
+            'active' => true,
+            'user_id' => $user->id,
+        ]);
 
         // Create token for immediate login
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
             'user' => $user,
+            'app' => $app,
             'access_token' => $token,
             'token_type' => 'Bearer',
         ], Response::HTTP_CREATED);
@@ -161,9 +177,15 @@ class AuthController extends Controller
             'email' => ['required', 'email'],
         ]);
 
-        $status = Password::sendResetLink(
-            $request->only('email')
-        );
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            throw ValidationException::withMessages([
+                'email' => ['We can\'t find a user with that email address.'],
+            ]);
+        }
+
+        $status = Password::sendResetLink($request->only('email'));
 
         if ($status != Password::RESET_LINK_SENT) {
             throw ValidationException::withMessages([
