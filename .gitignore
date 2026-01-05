@@ -1,0 +1,30 @@
+# Dependency directories
+node_modules/
+vendor/
+.vscode/
+.idea/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Build files
+/backend/public/build
+/backend/public/hot
+
+# Storage directory
+/backend/storage/*
+!/backend/storage/.gitkeep
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
